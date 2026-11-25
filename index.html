@@ -742,7 +742,7 @@ async function cargarExpediente(meta,leer){
 
 if(MODE==='tecnico'){
  /* ===== técnicos: enviar al repositorio privado de GitHub ===== */
- const cfg=()=>({owner:store.get('gh_owner','TerasAscensores'),repo:store.get('gh_repo','mi-expedientes'),token:store.get('gh_token','')});
+ const cfg=()=>({owner:store.get('gh_owner','TerasAscensores'),repo:store.get('gh_repo','EXPEDIENTES-MODIFICACIONES-IMPORTANTES'),token:store.get('gh_token','')});
  const b64=u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)};
  async function gh(path,opt={}){const c=cfg();
   const r=await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}${path}`,{...opt,headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+c.token,'X-GitHub-Api-Version':'2022-11-28',...(opt.body?{'Content-Type':'application/json'}:{})}});
@@ -777,7 +777,7 @@ if(MODE==='tecnico'){
   box.append(mkField('Tu nombre',store.get('mi_tecnico',''),'text',v=>store.set('mi_tecnico',v)),
    mkField('Clave de acceso (te la da la oficina; se pega una sola vez)',c.token,'password',v=>store.set('gh_token',v)));
   const adv=document.createElement('details');adv.style.marginTop='8px';const sm=document.createElement('summary');sm.textContent='Repositorio';sm.className='note';
-  adv.append(sm,mkField('Propietario',c.owner,'text',v=>store.set('gh_owner',v||'TerasAscensores')),mkField('Repositorio',c.repo,'text',v=>store.set('gh_repo',v||'mi-expedientes')));box.append(adv);
+  adv.append(sm,mkField('Propietario',c.owner,'text',v=>store.set('gh_owner',v||'TerasAscensores')),mkField('Repositorio',c.repo,'text',v=>store.set('gh_repo',v||'EXPEDIENTES-MODIFICACIONES-IMPORTANTES')));box.append(adv);
   const bt=$('#nBtns');bt.textContent='';const s=mkBtn('Enviar este expediente','pri',enviar);s.id='ghSend';bt.append(s,mkBtn('Cerrar','',()=>$('#dlgN').close()));
   $('#nLst').textContent='';nProg('');$('#dlgN').showModal()}
  $('#bNube').textContent='Enviar a la oficina';
@@ -786,7 +786,7 @@ if(MODE==='tecnico'){
  $('#pdf').addEventListener('click',abrirEnvio);
 }else{
  /* ===== oficina: importar desde la copia local del repositorio ===== */
- const REPO_DEF='C:\\Users\\Dani\\Desktop\\MODIFICACION IMPORTANTE\\REPOSITORIO\\mi-expedientes';
+ const REPO_DEF='C:\\Users\\Dani\\Desktop\\MODIFICACION IMPORTANTE\\REPOSITORIO\\EXPEDIENTES-MODIFICACIONES-IMPORTANTES';
  const repoDir=()=>store.get('mi_repo',REPO_DEF);
  const hechos=()=>store.get('mi_generados',{});
  async function listarLocal(){
