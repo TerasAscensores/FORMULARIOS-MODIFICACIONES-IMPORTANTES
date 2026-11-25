@@ -757,10 +757,15 @@ if(MODE==='tecnico'){
    if(!d._gh)d._gh=`expedientes/${new Date().toISOString().slice(0,10)} ${safeName(d.ref_instalacion)}${d.rae?' - RAE '+safeName(d.rae):''}`;
    store.set('mi_borrador',d);
    const files=empaquetar();
-   const repo=await gh('');const br=repo.default_branch||'main';
+   let paso='repo';
+   const repo=await gh('').catch(e=>{e.paso='repo';throw e});const br=repo.default_branch||'main';
+   if(repo.permissions&&repo.permissions.push===false){const e=new Error('solo lectura');e.status=403;e.paso='escritura';throw e}
+   // repositorio vacío (sin ningún archivo): crear un primer archivo para poder trabajar
+   try{await gh('/git/ref/heads/'+br)}catch(e){if(e.status===404||e.status===409){
+     await gh('/contents/LEEME.md',{method:'PUT',body:JSON.stringify({message:'Inicio del repositorio de expedientes',content:btoa('Expedientes de modificaciones importantes\n')})}).catch(x=>{x.paso='escritura';throw x})}else throw e}
    const tree=[];let n=0;
    for(const [p,bytes] of files){nProg(`Subiendo ${++n} de ${files.length}…`);
-    const bl=await gh('/git/blobs',{method:'POST',body:JSON.stringify({content:b64(bytes),encoding:'base64'})});
+    const bl=await gh('/git/blobs',{method:'POST',body:JSON.stringify({content:b64(bytes),encoding:'base64'})}).catch(e=>{e.paso='escritura';throw e});
     tree.push({path:d._gh+'/'+p,mode:'100644',type:'blob',sha:bl.sha})}
    for(let intento=0;intento<3;intento++){
     const ref=await gh('/git/ref/heads/'+br);const head=await gh('/git/commits/'+ref.object.sha);
@@ -769,13 +774,18 @@ if(MODE==='tecnico'){
     try{await gh('/git/refs/heads/'+br,{method:'PATCH',body:JSON.stringify({sha:cm.sha})});break}catch(e){if(intento===2||(e.status!==422&&e.status!==409))throw e}}
    nProg('Enviado a la oficina: '+d._gh.replace('expedientes/','')+'. Si corriges algo, vuelve a enviarlo y se actualiza.');
    $('#msg').textContent='Expediente enviado a la oficina.';
-  }catch(e){nProg(e.status===401?'La clave de acceso no es válida o ha caducado. Pide una nueva a la oficina.':e.status===403||e.status===404?'La clave no tiene permiso para el repositorio. Avisa a la oficina.':e.status===422?'GitHub ha rechazado algún archivo (puede ser demasiado grande, máximo 50 MB).':'No se pudo enviar ('+(e.message||'sin conexión')+'). Comprueba la conexión e inténtalo de nuevo.')}
+  }catch(e){const c=cfg();nProg(
+   e.status===401?'La clave no es válida o ha caducado (GitHub dice 401). Comprueba que la has pegado completa, sin espacios, o crea una nueva.':
+   e.paso==='repo'&&(e.status===404||e.status===403)?`GitHub no deja ver el repositorio «${c.owner}/${c.repo}» con esta clave (${e.status}). Revisa en la clave: «Repository access» → «Only select repositories» con ese repositorio marcado. Y que el nombre en «Repositorio» (abajo) sea exacto.`:
+   e.paso==='escritura'?`La clave puede ver el repositorio pero no escribir en él (${e.status||''}). En la clave, «Permissions» → «Contents» tiene que estar en «Read and write».`:
+   e.status===422?'GitHub ha rechazado algún archivo (puede ser demasiado grande, máximo 50 MB).':
+   'No se pudo enviar ('+(e.status?'GitHub '+e.status:e.message||'sin conexión')+'). Comprueba la conexión e inténtalo de nuevo.')}
   finally{btn.disabled=false}}
  function abrirEnvio(){const c=cfg();$('#nTit').textContent='Enviar a la oficina';
   nInfo('El expediente (datos, adjuntos y fotos) se guarda en el repositorio de la empresa. La oficina lo revisa y genera el documento.');
   const box=$('#nCfg');box.textContent='';
   box.append(mkField('Tu nombre',store.get('mi_tecnico',''),'text',v=>store.set('mi_tecnico',v)),
-   mkField('Clave de acceso (te la da la oficina; se pega una sola vez)',c.token,'password',v=>store.set('gh_token',v)));
+   mkField('Clave de acceso (te la da la oficina; se pega una sola vez)',c.token,'password',v=>store.set('gh_token',v.replace(/\s+/g,''))));
   const adv=document.createElement('details');adv.style.marginTop='8px';const sm=document.createElement('summary');sm.textContent='Repositorio';sm.className='note';
   adv.append(sm,mkField('Propietario',c.owner,'text',v=>store.set('gh_owner',v||'TerasAscensores')),mkField('Repositorio',c.repo,'text',v=>store.set('gh_repo',v||'EXPEDIENTES-MODIFICACIONES-IMPORTANTES')));box.append(adv);
   const bt=$('#nBtns');bt.textContent='';const s=mkBtn('Enviar este expediente','pri',enviar);s.id='ghSend';bt.append(s,mkBtn('Cerrar','',()=>$('#dlgN').close()));
